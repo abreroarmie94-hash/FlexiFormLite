@@ -1,246 +1,987 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>FlexiForm App</title>
-<link rel="manifest" href="manifest.json">
-<style>
-  body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(135deg,#0066ff,#00ccff);min-height:100vh;display:flex;align-items:center;justify-content:center}
-  .container{width:95%;max-width:420px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
-  h2{text-align:center;color:#0066ff;margin:8px 0}
-  input,select,button,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;margin:8px 0;box-sizing:border-box}
-  button{background:#0066ff;color:#fff;border:0;cursor:pointer}
-  .hidden{display:none}
-  .link{color:#0066ff;text-align:center;display:block;cursor:pointer;margin-top:8px}
-  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  .status{font-size:13px}
-</style>
-<script>
-// *********************** CONFIG ***********************
-// Use a proxy to fix CORS errors from GitHub Pages
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzBPnE4Oof0OsCZG7ESM3AG4NiAG_bYRxF7gzNSFmWELkuw3aOrRlkvPM4a5OK7_96V/exec";
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMI Project App</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4A90E2">
+    
+    <style>
+        /* --- GLOBAL STYLES --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #app {
+            width: 100%;
+            max-width: 500px;
+            min-height: 100vh;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* --- PAGE CONTAINER --- */
+        .page {
+            display: none; /* Lahat ay tago by default */
+            padding: 20px;
+            width: 100%;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        .page.active {
+            display: flex; /* Ipapakita lang ang active page */
+        }
+        
+        /* --- UTILITIES --- */
+        h1, h2, h3 {
+            color: #1a237e;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="password"],
+        input[type="email"],
+        input[type="tel"],
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button, .button {
+            display: inline-block;
+            width: 100%;
+            padding: 15px;
+            background-color: #1a237e;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        button:hover, .button:hover {
+            background-color: #000051;
+        }
+        .button-secondary {
+            background-color: #f0f2f5;
+            color: #1a237e;
+            border: 1px solid #1a237e;
+        }
+        .button-danger {
+            background-color: #c62828;
+        }
+        a {
+            color: #1a237e;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .mt-20 {
+            margin-top: 20px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a237e;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-// Register service worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js')
-    .then(()=>console.log('ServiceWorker registered'))
-    .catch(err=>console.log('SW failed',err));
-}
+        /* --- SPECIFIC PAGE STYLES --- */
 
-// ---------------- Helper to POST JSON ----------------
-async function postJSON(payload) {
-  try {
-    const res = await fetch(WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+        /* User Dashboard */
+        #userDashboardPage header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        #currentTime {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        #onlineStatus {
+            font-size: 12px;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+        #onlineStatus.online {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #onlineStatus.offline {
+            background-color: #f44336;
+            color: white;
+        }
+        #userDashboardPage .content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #userDashboardPage footer {
+            padding: 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #creatorButton {
+            background: none;
+            border: none;
+            color: #1a237e;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-    // If proxy or backend responds OK
-    if (!res.ok) throw new Error("HTTP status " + res.status);
-    const text = await res.text();
+        /* Creator Info Popup */
+        #infoPopup {
+            display: none; /* Tago by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #infoPopup .popup-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 90%;
+            width: 450px;
+        }
+        #infoPopup ul {
+            list-style-position: inside;
+            margin-top: 15px;
+            padding-left: 10px;
+        }
+        #infoPopup li {
+            margin-bottom: 5px;
+        }
 
-    // Apps Script sometimes returns text/html, so parse safely
-    try {
-      return JSON.parse(text);
-    } catch {
-      console.warn("Non-JSON response:", text);
-      return { status:"error", message:"Invalid response from server" };
-    }
+        /* Admin Project List */
+        .project-item {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .project-item div {
+            flex-grow: 1;
+        }
+        .project-item strong {
+            font-size: 1.1em;
+            color: #000051;
+        }
+        .project-item small {
+            color: #555;
+            display: block;
+        }
+        .project-item .actions {
+            flex-grow: 0;
+            flex-shrink: 0;
+            display: flex;
+            gap: 5px;
+        }
+        .project-item button {
+            width: auto;
+            padding: 5px 8px;
+            font-size: 12px;
+            margin-top: 0;
+        }
 
-  } catch (err) {
-    console.error("Network error:", err);
-    return { status:"error", message:"Network error: " + err.message };
-  }
-}
+        /* Survey Builder */
+        #questionContainer .question-item {
+            background: #f9f9f9;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        #questionContainer input, #questionContainer select {
+            background: white;
+        }
+        .options-container {
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+        .options-container input {
+            width: 90%;
+            margin-bottom: 5px;
+        }
+        
+        /* Survey Taker */
+        #surveyFormContainer .survey-question {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        #surveyFormContainer .survey-question label {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #000051;
+        }
+        #surveyFormContainer .survey-question input[type="radio"],
+        #surveyFormContainer .survey-question input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        .radio-option, .checkbox-option {
+            display: block;
+            margin-top: 10px;
+            font-size: 16px;
+        }
 
-function show(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
-}
-function backToStart(){ show('startPage'); }
-
-// ---------------- LOGIN ----------------
-async function login(){
-  const u = document.getElementById('loginUsername').value.trim();
-  const p = document.getElementById('loginPassword').value.trim();
-  const msg = document.getElementById('loginMsg');
-  msg.style.color="#555"; msg.textContent="Checking...";
-  const res = await postJSON({ action:"loginUser", username:u, password:p });
-  if (!res) { msg.style.color="red"; msg.textContent="Network error"; return; }
-
-  if (res.status === "admin") {
-    msg.style.color="green"; msg.textContent=res.message;
-    show('adminDashboard'); loadProjects(true);
-  } else if (res.status === "user") {
-    msg.style.color="green"; msg.textContent=res.message;
-    sessionStorage.setItem('userName', res.name||u);
-    sessionStorage.setItem('userUsername', u);
-    show('userDashboard'); loadProjects(false);
-  } else {
-    msg.style.color="red"; msg.textContent=res.message;
-  }
-}
-
-// ---------------- REGISTER ----------------
-async function register(){
-  const payload = {
-    action:"registerUser",
-    firstName:document.getElementById('firstName').value.trim(),
-    lastName:document.getElementById('lastName').value.trim(),
-    department:document.getElementById('department').value.trim(),
-    contact:document.getElementById('contact').value.trim(),
-    email:document.getElementById('email').value.trim(),
-    username:document.getElementById('username').value.trim(),
-    password:document.getElementById('password').value.trim(),
-    refcode:document.getElementById('refcode').value.trim()
-  };
-  const msg=document.getElementById('registerMsg');
-  msg.style.color="#555"; msg.textContent="Submitting...";
-  const res=await postJSON(payload);
-  msg.style.color=(res.status==="success")?"green":"red";
-  msg.textContent=res.message||"Network error";
-  if(res.status==="success"){setTimeout(()=>show('startPage'),1200);}
-}
-
-// ---------------- Projects (Admin) ----------------
-async function createProjectUI(){
-  const name=document.getElementById('projName').value.trim();
-  const descr=document.getElementById('projDesc').value.trim();
-  if(!name){alert("Project name required");return;}
-  const res=await postJSON({action:"createProject",adminKey:"ADMINBOYKA",projectName:name,description:descr,creator:"ADMIN"});
-  alert(res.message||"Network error");
-  if(res.status==="success"){
-    document.getElementById('projName').value="";
-    document.getElementById('projDesc').value="";
-    loadProjects(true);
-  }
-}
-
-async function loadProjects(isAdmin){
-  const res=await postJSON({action:"listProjects"});
-  const listEl=document.getElementById(isAdmin?'adminProjectsList':'userProjectsList');
-  if(!res||res.status!=="success"){listEl.innerHTML="<p>No projects found</p>";return;}
-  const projects=res.projects||[];
-  if(!projects.length){listEl.innerHTML="<p>No projects found</p>";return;}
-
-  listEl.innerHTML="";
-  projects.forEach(p=>{
-    const div=document.createElement('div');
-    div.style.border="1px solid #eee";div.style.padding="10px";div.style.marginBottom="8px";div.style.borderRadius="8px";
-    const t=document.createElement('div');t.textContent=p.projectName;t.style.fontWeight="600";
-    const d=document.createElement('div');d.textContent=p.description||"";d.style.fontSize="13px";
-    const btn=document.createElement('button');btn.textContent=isAdmin?"View / Edit":"Open Survey";
-    btn.style.marginTop="8px";btn.onclick=()=>openProject(p,isAdmin);
-    div.append(t,d,btn);listEl.appendChild(div);
-  });
-}
-
-function openProject(project,isAdmin){
-  if(isAdmin){
-    const see=confirm("Do you want to see details? Press Cancel to edit.");
-    if(see){
-      alert("Project: "+project.projectName+"\nCreated: "+new Date(project.dateCreated).toLocaleString());
-    }else{
-      document.getElementById('projName').value=project.projectName;
-      document.getElementById('projDesc').value=project.description;
-      show('adminCreateProject');
-    }
-  }else{
-    document.getElementById('surveyProjectName').textContent=project.projectName;
-    document.getElementById('surveyProjectDesc').textContent=project.description;
-    document.getElementById('survey_projectName_input').value=project.projectName;
-    show('userSurvey');
-  }
-}
-
-// ---------------- Submit survey (User) ----------------
-async function submitSurvey(){
-  const projectName=document.getElementById('survey_projectName_input').value;
-  const username=sessionStorage.getItem('userUsername');
-  const email=sessionStorage.getItem('userEmail')||"none";
-  const answer1=document.getElementById('q1').value.trim();
-  const res=await postJSON({action:"submitSurvey",projectName,username,email,answers:{q1:answer1}});
-  alert(res.message||"Network error");
-  if(res.status==="success"){show('userDashboard');loadProjects(false);}
-}
-
-document.addEventListener('DOMContentLoaded',()=>show('startPage'));
-</script>
+    </style>
 </head>
 <body>
-  <div class="container">
 
-    <!-- Start Page -->
-    <div id="startPage" class="page">
-      <h2>Do you have an account?</h2>
-      <button onclick="show('loginPage')">Yes, Login</button>
-      <button onclick="show('registerPage')">No, Register</button>
-    </div>
+    <div id="app">
 
-    <!-- Login -->
-    <div id="loginPage" class="page hidden">
-      <h2>Login</h2>
-      <input id="loginUsername" placeholder="Username">
-      <input id="loginPassword" placeholder="Password" type="password">
-      <button onclick="login()">Login</button>
-      <span class="link" onclick="backToStart()">← Back</span>
-      <p id="loginMsg"></p>
-    </div>
+        <div class="page" id="loadingPage">
+            <div class="loading-spinner"></div>
+            <p class="text-center">Loading...</p>
+        </div>
 
-    <!-- Register -->
-    <div id="registerPage" class="page hidden">
-      <h2>Register</h2>
-      <input id="firstName" placeholder="First Name">
-      <input id="lastName" placeholder="Last Name">
-      <input id="department" placeholder="Department">
-      <input id="contact" placeholder="Contact Number">
-      <input id="email" placeholder="Google Email">
-      <input id="username" placeholder="Username">
-      <input id="password" placeholder="Password" type="password">
-      <input id="refcode" placeholder="Reference Code (ask company)">
-      <button onclick="register()">Register</button>
-      <span class="link" onclick="backToStart()">← Back</span>
-      <p id="registerMsg"></p>
-    </div>
+        <div class="page active" id="loginPage">
+            <h2>Welcome</h2>
+            <p class="text-center" style="margin-bottom: 30px;">Do you have an account? Please log in.</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email (Username)</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Contact Number (Password)</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+            <p class="text-center mt-20">
+                Wala pang account? <a id="goToRegister">Mag-register dito</a>.
+            </p>
+        </div>
 
-    <!-- Admin Dashboard -->
-    <div id="adminDashboard" class="page hidden">
-      <div class="topbar"><div><strong>Admin Dashboard</strong></div><div class="status">Admin</div></div>
-      <div id="adminCreateProject">
-        <h2>Create Project</h2>
-        <input id="projName" placeholder="Project name">
-        <textarea id="projDesc" placeholder="Short description" rows="3"></textarea>
-        <button onclick="createProjectUI()">Create Project</button>
-      </div>
-      <h2 style="margin-top:12px">Projects</h2>
-      <div id="adminProjectsList" style="max-height:260px;overflow:auto"></div>
-    </div>
+        <div class="page" id="registerPage">
+            <h2>Register New Account</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regLastname">Last Name</label>
+                    <input type="text" id="regLastname" required>
+                </div>
+                <div class="form-group">
+                    <label for="regFirstname">First Name</label>
+                    <input type="text" id="regFirstname" required>
+                </div>
+                <div class="form-group">
+                    <label for="regDepartment">Department</label>
+                    <input type="text" id="regDepartment" required>
+                </div>
+                <div class="form-group">
+                    <label for="regContact">Contact Number</label>
+                    <input type="tel" id="regContact" required>
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Google Email (Company Email)</label>
+                    <input type="email" id="regEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="regCode">Reference Code</label>
+                    <input type="text" id="regCode" required>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <p class="text-center mt-20">
+                May account na? <a id="goToLogin">Mag-login dito</a>.
+            </p>
+        </div>
 
-    <!-- User Dashboard -->
-    <div id="userDashboard" class="page hidden">
-      <div class="topbar"><div><strong>User Dashboard</strong></div><div class="status" id="userStatus">User</div></div>
-      <h2>List of Projects</h2>
-      <div id="userProjectsList" style="max-height:260px;overflow:auto"></div>
-    </div>
+        <div class="page" id="adminDashboardPage">
+            <h2 id="adminWelcome">Welcome, Admin!</h2>
+            <button id="goToCreateProject" class="button">Create Project</button>
+            <button id="goToListProjects" class="button">List of Projects Created</button>
+            <button id="goToArchiveProjects" class="button">Archive Projects</button>
+            <button id="adminLogout" class="button button-secondary mt-20">Logout</button>
+        </div>
+        
+        <div class="page" id="adminProjectListPage">
+            <button id="backToAdminDash1" class="button button-secondary">Back to Dashboard</button>
+            <h2 class="mt-20">Active Projects</h2>
+            <div id="projectListContainer">
+                </div>
+        </div>
 
-    <!-- User Survey -->
-    <div id="userSurvey" class="page hidden">
-      <h2 id="surveyProjectName"></h2>
-      <div id="surveyProjectDesc" style="font-size:13px;color:#666"></div>
-      <input id="survey_projectName_input" type="hidden">
-      <p style="margin-top:12px">1) Sample Question: How satisfied are you?</p>
-      <input id="q1" placeholder="Your answer (short)">
-      <button onclick="submitSurvey()">Submit Response</button>
-      <span class="link" onclick="show('userDashboard')">← Back</span>
-    </div>
+        <div class="page" id="adminArchivePage">
+            <button id="backToAdminDash2" class="button button-secondary">Back to Dashboard</button>
+            <h2 class="mt-20">Archived Projects</h2>
+            <div id="archiveListContainer">
+                </div>
+        </div>
 
-  </div>
+        <div class="page" id="adminSurveyBuilderPage">
+            <button id="backToAdminDash3" class="button button-secondary">Back to Dashboard</button>
+            <h2 class="mt-20">Create New Project</h2>
+            <div class="form-group">
+                <label for="projectName">Project Name</label>
+                <input type="text" id="projectName" placeholder="e.g., Monthly Satisfaction Survey">
+            </div>
+            <h3>Survey Questions</h3>
+            <div id="questionContainer">
+                </div>
+            <button id="addQuestionButton" class="button button-secondary">+ Add Question</button>
+            <button id="saveProjectButton" class="button mt-20">Save Project</button>
+        </div>
+
+
+        <div class="page" id="userDashboardPage">
+            <header>
+                <span id="currentTime">--:--:-- --</span>
+                <span id="onlineStatus" class="offline">Offline</span>
+            </header>
+            
+            <div class="content">
+                <h3 id="userWelcome">Welcome, User!</h3>
+                <div class="form-group" style="width: 100%;">
+                    <label for="projectDropdown">List of Projects</label>
+                    <select id="projectDropdown">
+                        <option value="">Pumili ng project...</option>
+                    </select>
+                </div>
+                <button id="startSurveyButton" class="button">Start Survey</button>
+            </div>
+            
+            <footer>
+                <button id="creatorButton">Creator Info</button>
+                <button id="userLogout" class="button-secondary" style="width: auto; padding: 10px 15px;">Logout</button>
+            </footer>
+        </div>
+
+        <div class="page" id="userSurveyTakerPage">
+            <button id="backToUserDash" class="button button-secondary">Back to Dashboard</button>
+            <h2 id="surveyTitle" class="mt-20">Survey Title</h2>
+            <form id="surveyFormContainer">
+                </form>
+            <button id="submitSurveyButton" class="button">Submit Survey</button>
+        </div>
+
+        <div id="infoPopup">
+            <div class="popup-content">
+                <h3>About the Creator</h3>
+                <p>Data Analyst ako ng AMI company with over 2 years of progressive data analyst.</p>
+                <strong>Mga na-handle ko na projects:</strong>
+                <ul>
+                    <li>NCL CA LIQUIDATION MONITORING</li>
+                    <li>EDTR 3A</li>
+                    <li>EDTR OPEX</li>
+                    <li>Admin of FlexiForm Application</li>
+                </ul>
+                <button id="closePopup" class="button mt-20">Back</button>
+            </div>
+        </div>
+
+    </div> <script>
+        // =================================================================
+        // == AMI PROJECT APP - JAVASCRIPT
+        // =================================================================
+
+        // -----------------------------------------------------------------
+        // == CONFIGURATION (PALITAN MO ITO!)
+        // -----------------------------------------------------------------
+        
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbycYNgtPHIQzNRQPcbSoBoI0O_JBiIyA4rJtQYoyyvkS_l-VZ4xHWr2wUalIpBE8O7z/exec';
+
+        // -----------------------------------------------------------------
+        // == GLOBAL STATE
+        // -----------------------------------------------------------------
+        
+        let currentUser = null; // Dito isasave ang info ng naka-login
+        let currentProjectBuilder = {
+            questions: []
+        };
+        let clockInterval = null;
+
+        // -----------------------------------------------------------------
+        // == MAIN APP INITIALIZATION
+        // -----------------------------------------------------------------
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Register PWA Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            }
+
+            // Page Navigation
+            setupNavigation();
+            
+            // Form Handlers
+            setupFormHandlers();
+            
+            // User Dashboard Features
+            setupUserDashboardFeatures();
+            
+            // Admin Dashboard Features
+            setupAdminFeatures();
+
+            // Default Page
+            showPage('loginPage');
+        });
+
+        // -----------------------------------------------------------------
+        // == HELPER FUNCTIONS (API & NAVIGATION)
+        // -----------------------------------------------------------------
+
+        /**
+         * Iisang function para ipakita ang tamang page at itago ang iba
+         */
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        /**
+         * Wrapper para sa pagtawag sa `doPost` ng Apps Script
+         */
+        async function gasPost(action, data = {}) {
+            showPage('loadingPage');
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action, data })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('gasPost Error:', error);
+                alert(`Error: ${error.message}. Hindi ma-contact ang server.`);
+                return { status: 'error', message: error.message };
+            }
+        }
+
+        /**
+         * Wrapper para sa pagtawag sa `doGet` ng Apps Script
+         */
+        async function gasGet(params) {
+            showPage('loadingPage');
+            try {
+                const url = new URL(GAS_URL);
+                Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('gasGet Error:', error);
+                alert(`Error: ${error.message}. Hindi ma-contact ang server.`);
+                return { status: 'error', message: error.message };
+            }
+        }
+
+        /**
+         * Logout function
+         */
+        function handleLogout() {
+            currentUser = null;
+            if (clockInterval) clearInterval(clockInterval);
+            showPage('loginPage');
+        }
+
+        // -----------------------------------------------------------------
+        // == PAGE NAVIGATION SETUP
+        // -----------------------------------------------------------------
+        
+        function setupNavigation() {
+            document.getElementById('goToRegister').addEventListener('click', () => showPage('registerPage'));
+            document.getElementById('goToLogin').addEventListener('click', () => showPage('loginPage'));
+            document.getElementById('adminLogout').addEventListener('click', handleLogout);
+            document.getElementById('userLogout').addEventListener('click', handleLogout);
+
+            // Back buttons
+            document.getElementById('backToAdminDash1').addEventListener('click', () => showPage('adminDashboardPage'));
+            document.getElementById('backToAdminDash2').addEventListener('click', () => showPage('adminDashboardPage'));
+            document.getElementById('backToAdminDash3').addEventListener('click', () => showPage('adminDashboardPage'));
+            document.getElementById('backToUserDash').addEventListener('click', () => showPage('userDashboardPage'));
+        }
+
+        // -----------------------------------------------------------------
+        // == FORM & LOGIN HANDLERS
+        // -----------------------------------------------------------------
+        
+        function setupFormHandlers() {
+            // Login
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+
+                const res = await gasPost('login', { username, password });
+
+                if (res.status === 'success') {
+                    currentUser = res.user; // Store user info
+                    currentUser.email = username; // Store email for later
+                    if (res.role === 'admin') {
+                        showPage('adminDashboardPage');
+                        document.getElementById('adminWelcome').innerText = `Welcome, ${currentUser.firstname}!`;
+                    } else {
+                        await loadUserDashboard(); // Load projects first
+                    }
+                } else {
+                    alert(`Login Failed: ${res.message}`);
+                    showPage('loginPage');
+                }
+            });
+
+            // Register
+            document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = {
+                    lastname: document.getElementById('regLastname').value,
+                    firstname: document.getElementById('regFirstname').value,
+                    department: document.getElementById('regDepartment').value,
+                    contact: document.getElementById('regContact').value,
+                    email: document.getElementById('regEmail').value,
+                    referenceCode: document.getElementById('regCode').value
+                };
+
+                const res = await gasPost('register', data);
+
+                if (res.status === 'success') {
+                    alert('Registration Successful! Pwede ka na mag-login.');
+                    document.getElementById('registerForm').reset();
+                    showPage('loginPage');
+                } else {
+                    alert(`Registration Failed: ${res.message}`);
+                    showPage('registerPage');
+                }
+            });
+        }
+        
+        // -----------------------------------------------------------------
+        // == USER DASHBOARD
+        // -----------------------------------------------------------------
+        
+        function setupUserDashboardFeatures() {
+            // Creator Info Popup
+            document.getElementById('creatorButton').addEventListener('click', () => {
+                document.getElementById('infoPopup').style.display = 'flex';
+            });
+            document.getElementById('closePopup').addEventListener('click', () => {
+                document.getElementById('infoPopup').style.display = 'none';
+            });
+            
+            // Online/Offline Status
+            updateOnlineStatus();
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            
+            // Start Survey Button
+            document.getElementById('startSurveyButton').addEventListener('click', () => {
+                const projectId = document.getElementById('projectDropdown').value;
+                if (!projectId) {
+                    alert('Pumili muna ng project mula sa listahan.');
+                    return;
+                }
+                loadSurveyTaker(projectId);
+            });
+            
+            // Submit Survey Button
+            document.getElementById('submitSurveyButton').addEventListener('click', handleSubmitSurvey);
+        }
+
+        async function loadUserDashboard() {
+            document.getElementById('userWelcome').innerText = `Welcome, ${currentUser.firstname}!`;
+            
+            // Start clock
+            updateTime();
+            clockInterval = setInterval(updateTime, 1000);
+            
+            // Load projects into dropdown
+            const res = await gasGet({ action: 'getProjectList' });
+            const dropdown = document.getElementById('projectDropdown');
+            dropdown.innerHTML = '<option value="">Pumili ng project...</option>'; // Reset
+            
+            if (res.status === 'success' && res.projects) {
+                res.projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = project.name;
+                    dropdown.appendChild(option);
+                });
+            }
+            showPage('userDashboardPage');
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('currentTime').innerText = timeString;
+        }
+
+        function updateOnlineStatus() {
+            const statusEl = document.getElementById('onlineStatus');
+            if (navigator.onLine) {
+                statusEl.innerText = 'Online';
+                statusEl.className = 'online';
+            } else {
+                statusEl.innerText = 'Offline';
+                statusEl.className = 'offline';
+            }
+        }
+        
+        async function loadSurveyTaker(projectId) {
+            const res = await gasGet({ action: 'getProjectDetails', id: projectId });
+            
+            if (res.status === 'success') {
+                const project = res.project;
+                document.getElementById('surveyTitle').innerText = project.name;
+                
+                const container = document.getElementById('surveyFormContainer');
+                container.innerHTML = ''; // Clear old form
+                container.dataset.projectId = projectId; // Store project ID for submission
+                
+                // Build the form from JSON
+                project.questions.forEach((q, index) => {
+                    const qId = `q_${index}`;
+                    const qDiv = document.createElement('div');
+                    qDiv.className = 'survey-question';
+                    
+                    let inputHtml = `<label for="${qId}">${q.text}</label>`;
+                    
+                    if (q.type === 'text' || q.type === 'date') {
+                        inputHtml += `<input type="${q.type}" id="${qId}" name="${q.text}" class="mt-20" required>`;
+                    } 
+                    else if (q.type === 'radio' || q.type === 'checkbox') {
+                        q.options.forEach((opt, optIndex) => {
+                            const optId = `q_${index}_opt_${optIndex}`;
+                            inputHtml += `
+                                <label for="${optId}" class="${q.type}-option">
+                                    <input type="${q.type}" id="${optId}" name="${q.text}" value="${opt}">
+                                    ${opt}
+                                </label>`;
+                        });
+                    }
+                    
+                    qDiv.innerHTML = inputHtml;
+                    container.appendChild(qDiv);
+                });
+                
+                showPage('userSurveyTakerPage');
+            } else {
+                alert(`Error: ${res.message}`);
+                showPage('userDashboardPage');
+            }
+        }
+        
+        async function handleSubmitSurvey() {
+            const container = document.getElementById('surveyFormContainer');
+            const projectId = container.dataset.projectId;
+            const form = new FormData(container);
+            const answers = {};
+            
+            // Convert FormData to a simple object
+            form.forEach((value, key) => {
+                if (answers[key]) {
+                    if (Array.isArray(answers[key])) {
+                        answers[key].push(value);
+                    } else {
+                        answers[key] = [answers[key], value]; // Convert to array
+                    }
+                } else {
+                    answers[key] = value;
+                }
+            });
+
+            // Convert arrays to comma-separated strings (cleaner for sheets)
+            Object.keys(answers).forEach(key => {
+                if (Array.isArray(answers[key])) {
+                    answers[key] = answers[key].join(', ');
+                }
+            });
+            
+            const data = {
+                projectId: projectId,
+                userEmail: currentUser.email,
+                answers: answers
+            };
+
+            const res = await gasPost('submitSurvey', data);
+            
+            if (res.status === 'success') {
+                alert('Survey submitted successfully!');
+                await loadUserDashboard(); // Reload dashboard
+            } else {
+                alert(`Error: ${res.message}`);
+                showPage('userSurveyTakerPage');
+            }
+        }
+        
+        // -----------------------------------------------------------------
+        // == ADMIN FEATURES
+        // -----------------------------------------------------------------
+
+        function setupAdminFeatures() {
+            // Dashboard buttons
+            document.getElementById('goToListProjects').addEventListener('click', loadProjectList);
+            document.getElementById('goToArchiveProjects').addEventListener('click', loadArchiveList);
+            document.getElementById('goToCreateProject').addEventListener('click', () => {
+                // Reset builder
+                currentProjectBuilder = { questions: [] };
+                document.getElementById('projectName').value = '';
+                document.getElementById('questionContainer').innerHTML = '';
+                showPage('adminSurveyBuilderPage');
+            });
+
+            // Survey Builder buttons
+            document.getElementById('addQuestionButton').addEventListener('click', addQuestionToBuilder);
+            document.getElementById('saveProjectButton').addEventListener('click', saveProject);
+        }
+        
+        async function loadProjectList() {
+            const res = await gasGet({ action: 'getProjectList' });
+            const container = document.getElementById('projectListContainer');
+            container.innerHTML = '';
+            
+            if (res.status === 'success' && res.projects) {
+                if (res.projects.length === 0) {
+                    container.innerHTML = '<p>No active projects found.</p>';
+                }
+                res.projects.forEach(p => {
+                    const date = new Date(p.date).toLocaleDateString();
+                    container.innerHTML += `
+                        <div class="project-item">
+                            <div>
+                                <strong>${p.name}</strong>
+                                <small>Created: ${date}</small>
+                            </div>
+                            <div class="actions">
+                                <button class="button-secondary" onclick="alert('Edit not implemented yet')">Edit</button>
+                                <button class="button-danger" onclick="archiveProject('${p.id}', '${p.name}')">Archive</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            showPage('adminProjectListPage');
+        }
+
+        async function loadArchiveList() {
+            const res = await gasGet({ action: 'getArchiveList' });
+            const container = document.getElementById('archiveListContainer');
+            container.innerHTML = '';
+            
+            if (res.status === 'success' && res.projects) {
+                if (res.projects.length === 0) {
+                    container.innerHTML = '<p>No archived projects found.</p>';
+                }
+                res.projects.forEach(p => {
+                    const date = new Date(p.date).toLocaleDateString();
+                    container.innerHTML += `
+                        <div class="project-item">
+                            <div>
+                                <strong>${p.name}</strong>
+                                <small>Archived: ${date}</small>
+                            </div>
+                            <div class="actions">
+                                <button class="button-secondary" onclick="restoreProject('${p.id}', '${p.name}')">Restore</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            showPage('adminArchivePage');
+        }
+
+        async function archiveProject(id, name) {
+            if (!confirm(`Are you sure you want to archive "${name}"?`)) return;
+            
+            const res = await gasPost('archiveProject', { id });
+            if (res.status === 'success') {
+                alert('Project archived!');
+                loadProjectList(); // Reload list
+            } else {
+                alert(`Error: ${res.message}`);
+            }
+        }
+        
+        async function restoreProject(id, name) {
+            if (!confirm(`Are you sure you want to restore "${name}"?`)) return;
+
+            const res = await gasPost('restoreProject', { id });
+            if (res.status === 'success') {
+                alert('Project restored!');
+                loadArchiveList(); // Reload list
+            } else {
+                alert(`Error: ${res.message}`);
+            }
+        }
+
+        function addQuestionToBuilder() {
+            const container = document.getElementById('questionContainer');
+            const qIndex = currentProjectBuilder.questions.length;
+            
+            const newQuestion = {
+                id: `q_temp_${qIndex}`,
+                type: 'text',
+                text: '',
+                options: []
+            };
+            currentProjectBuilder.questions.push(newQuestion);
+            
+            // Render the new question box
+            const qDiv = document.createElement('div');
+            qDiv.className = 'question-item';
+            qDiv.id = newQuestion.id;
+            qDiv.innerHTML = `
+                <div class="form-group">
+                    <label>Question Type</label>
+                    <select onchange="updateQuestionType('${newQuestion.id}', this.value)">
+                        <option value="text">Short Answer (Text)</option>
+                        <option value="date">Date</option>
+                        <option value="radio">Multiple Choice (Radio)</option>
+                        <option value="checkbox">Checkboxes</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Question Text</label>
+                    <input type="text" placeholder="What is your question?" onchange="updateQuestionText('${newQuestion.id}', this.value)">
+                </div>
+                <div class="options-container" style="display: none;">
+                    <label>Options</label>
+                    <button type="button" class="button-secondary" style="width:auto; padding: 5px 10px; font-size: 12px;" onclick="addOptionToQuestion('${newQuestion.id}')">+ Add Option</button>
+                </div>
+            `;
+            container.appendChild(qDiv);
+        }
+
+        function updateQuestionType(tempId, newType) {
+            const q = currentProjectBuilder.questions.find(q => q.id === tempId);
+            q.type = newType;
+            
+            const qDiv = document.getElementById(tempId);
+            const optionsContainer = qDiv.querySelector('.options-container');
+            if (newType === 'radio' || newType === 'checkbox') {
+                optionsContainer.style.display = 'block';
+            } else {
+                optionsContainer.style.display = 'none';
+            }
+        }
+
+        function updateQuestionText(tempId, newText) {
+            currentProjectBuilder.questions.find(q => q.id === tempId).text = newText;
+        }
+
+        function addOptionToQuestion(tempId) {
+            const q = currentProjectBuilder.questions.find(q => q.id === tempId);
+            const newOption = `Option ${q.options.length + 1}`;
+            q.options.push(newOption);
+            
+            const qDiv = document.getElementById(tempId);
+            const optionsContainer = qDiv.querySelector('.options-container');
+            
+            const optInput = document.createElement('input');
+            optInput.type = 'text';
+            optInput.value = newOption;
+            const optIndex = q.options.length - 1;
+            optInput.onchange = function() {
+                q.options[optIndex] = this.value;
+            };
+            optionsContainer.appendChild(optInput);
+        }
+        
+        async function saveProject() {
+            const projectName = document.getElementById('projectName').value;
+            if (!projectName) {
+                alert('Please enter a project name.');
+                return;
+            }
+            if (currentProjectBuilder.questions.length === 0) {
+                alert('Please add at least one question.');
+                return;
+            }
+            
+            // Clean up temporary IDs
+            const finalQuestions = currentProjectBuilder.questions.map(q => ({
+                type: q.type,
+                text: q.text,
+                options: q.options
+            }));
+            
+            const data = {
+                projectName: projectName,
+                questions: finalQuestions
+            };
+            
+            const res = await gasPost('createProject', data);
+            
+            if (res.status === 'success') {
+                alert('Project created successfully!');
+                showPage('adminDashboardPage');
+            } else {
+                alert(`Error: ${res.message}`);
+                showPage('adminSurveyBuilderPage');
+            }
+        }
+        
+    </script>
 </body>
 </html>
-
-
-
-
-
