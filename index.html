@@ -18,17 +18,16 @@
 </style>
 <script>
 // *********************** CONFIG ***********************
-// Put the published Apps Script Web App URL here (doPost endpoint)
-const WEB_APP_URL = "YOUR_DEPLOYED_WEBAPP_URL_HERE"; // <- REPLACE
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyDn3X97outoTMvTUi7v1Kx3f6T46Fw4R1QctB7adp8-uMsbIEqFH1FIwqLU9EpqOmY/exec";
 
-// Service worker filename (must match file you upload to GH Pages)
+// Service worker registration
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js')
     .then(()=>console.log('ServiceWorker registered'))
     .catch(err=>console.log('SW failed',err));
 }
 
-// Small util to POST JSON and return parsed JSON
+// Helper to POST JSON
 async function postJSON(payload) {
   try {
     const res = await fetch(WEB_APP_URL, {
@@ -43,7 +42,6 @@ async function postJSON(payload) {
   }
 }
 
-// UI helpers
 function show(id){ document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
 function backToStart(){ show('startPage'); }
 
@@ -58,13 +56,10 @@ async function login(){
 
   if (res.status === "admin") {
     msg.style.color="green"; msg.textContent = res.message;
-    // go to admin dashboard
     show('adminDashboard');
     loadProjects(true);
   } else if (res.status === "user") {
     msg.style.color="green"; msg.textContent = res.message;
-    // go to user page
-    // store minimal context in sessionStorage
     sessionStorage.setItem('userName', res.name || u);
     sessionStorage.setItem('userUsername', u);
     show('userDashboard');
@@ -103,7 +98,6 @@ async function createProjectUI(){
   const name = document.getElementById('projName').value.trim();
   const descr = document.getElementById('projDesc').value.trim();
   if (!name) { alert("Project name required"); return; }
-  // NOTE: Using adminKey = ADMINBOYKA to authorize (server uses simple check)
   const res = await postJSON({ action:"createProject", adminKey:"ADMINBOYKA", projectName:name, description:descr, creator:"ADMIN" });
   if (!res) { alert("Network error"); return; }
   alert(res.message);
@@ -124,7 +118,6 @@ async function loadProjects(isAdmin){
   const projects = res.projects || [];
   if (!projects.length) { listEl.innerHTML = "<p>No projects found</p>"; return; }
 
-  // render as simple list
   listEl.innerHTML = "";
   projects.forEach(p => {
     const div = document.createElement('div');
@@ -140,23 +133,19 @@ async function loadProjects(isAdmin){
 }
 
 function openProject(project, isAdmin){
-  // Show a modal-like simple detail / action flow
   if (isAdmin) {
     const see = confirm("Do you want to see details? Press Cancel to edit.");
     if (see) {
       alert("Project: " + project.projectName + "\nCreated: " + new Date(project.dateCreated).toLocaleString());
     } else {
-      // For this prototype, editing is same as createProjectUI filled with values
       document.getElementById('projName').value = project.projectName;
       document.getElementById('projDesc').value = project.description;
       show('adminCreateProject');
     }
   } else {
-    // open the survey for user to fill - for prototype we show simple form
     document.getElementById('surveyProjectName').textContent = project.projectName;
     document.getElementById('surveyProjectDesc').textContent = project.description;
     show('userSurvey');
-    // attach current project name to hidden field
     document.getElementById('survey_projectName_input').value = project.projectName;
   }
 }
@@ -164,9 +153,8 @@ function openProject(project, isAdmin){
 // ---------------- Submit survey (user) ----------------
 async function submitSurvey(){
   const projectName = document.getElementById('survey_projectName_input').value;
-  const username = sessionStorage.getItem('userUsername') || document.getElementById('surveyName').value.trim();
-  const email = sessionStorage.getItem('userEmail') || document.getElementById('surveyEmail').value.trim();
-  // For prototype, collect a sample answer field
+  const username = sessionStorage.getItem('userUsername');
+  const email = sessionStorage.getItem('userEmail') || "none";
   const answer1 = document.getElementById('q1').value.trim();
 
   const res = await postJSON({
@@ -180,16 +168,12 @@ async function submitSurvey(){
   if (!res) { alert("Network error"); return; }
   alert(res.message);
   if (res.status === "success") {
-    // back to user projects list
     show('userDashboard');
     loadProjects(false);
   }
 }
 
-// ---------------- UI initialization ----------------
-document.addEventListener('DOMContentLoaded', ()=> {
-  show('startPage');
-});
+document.addEventListener('DOMContentLoaded', ()=> show('startPage'));
 </script>
 </head>
 <body>
@@ -257,7 +241,7 @@ document.addEventListener('DOMContentLoaded', ()=> {
       <div id="userProjectsList" style="max-height:260px;overflow:auto"></div>
     </div>
 
-    <!-- User Survey Page (simple prototype) -->
+    <!-- User Survey -->
     <div id="userSurvey" class="page hidden">
       <h2 id="surveyProjectName"></h2>
       <div id="surveyProjectDesc" style="font-size:13px;color:#666"></div>
