@@ -1,49 +1,52 @@
-const CACHE_NAME = "flexiform-cache-v2";
-const urlsToCache = [
-  "./",
-  "./index.html",
-  "./manifest.json",
-  "./service-worker.js"
+const CACHE_NAME = 'ami-app-cache-v1';
+// Ang `index.html` lang ang i-cache natin
+// dahil ang CSS at JS ay nasa loob na niya.
+const URLS_TO_CACHE = [
+  'index.html'
 ];
 
-// Install: cache basic files
-self.addEventListener("install", event => {
+// Install event
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(urlsToCache).catch(err => console.warn("Cache addAll failed", err))
-    )
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        return cache.addAll(URLS_TO_CACHE);
+      })
   );
 });
 
-// Fetch: try cache first, then network
-self.addEventListener("fetch", event => {
-  const reqUrl = event.request.url;
-
-  // ⚠️ Always skip caching for dynamic requests (Google Apps Script backend)
-  if (reqUrl.includes("script.google.com/macros")) {
+// Fetch event (Offline-first strategy)
+self.addEventListener('fetch', event => {
+  // Huwag i-cache ang mga tawag sa Google Apps Script
+  if (event.request.url.includes('script.google.com')) {
     event.respondWith(fetch(event.request));
     return;
   }
-
+  
+  // Para sa lahat ng iba (tulad ng index.html)
   event.respondWith(
-    caches.match(event.request).then(response =>
-      response ||
-      fetch(event.request).then(fetchRes => {
-        // Optionally cache new files dynamically
-        return caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, fetchRes.clone());
-          return fetchRes;
-        });
+    caches.match(event.request)
+      .then(response => {
+        // Ibigay mula sa cache kung nandoon,
+        // kung wala, kunin sa network
+        return response || fetch(event.request);
       })
-    )
   );
 });
 
-// Activate: clear old cache versions
-self.addEventListener("activate", event => {
+// Activate event (Clean up old caches)
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
 });
