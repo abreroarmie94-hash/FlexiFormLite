@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlexiForm App</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  body {
+    margin:0; font-family:'Poppins',sans-serif;
+    background:linear-gradient(135deg,#0066ff,#00ccff);
+    height:100vh; display:flex; justify-content:center; align-items:center;
+  }
+  .container {
+    background:#fff; padding:2rem; border-radius:20px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.2);
+    width:90%; max-width:400px; transition:all .4s ease;
+  }
+  h2 { text-align:center; color:#0066ff; margin-bottom:1rem; }
+  input, button {
+    width:100%; padding:10px; margin:8px 0;
+    border-radius:8px; border:1px solid #ccc; font-size:14px;
+  }
+  button { background:#0066ff; color:#fff; border:none; cursor:pointer; }
+  button:hover { background:#0044cc; }
+  .hidden { display:none; }
+  .link { color:#0066ff; cursor:pointer; text-align:center; display:block; margin-top:10px; }
+  .message { text-align:center; font-size:13px; margin-top:5px; }
+  .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+  .status { font-size:12px; }
+</style>
+<script>
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyDn3X97outoTMvTUi7v1Kx3f6T46Fw4R1QctB7adp8-uMsbIEqFH1FIwqLU9EpqOmY/exec";
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./serviceWorker.js')
+  .then(()=>console.log('Service Worker registered'))
+  .catch(err=>console.log('SW registration failed', err));
+}
+
+// === UI Handlers ===
+function showLogin(){ toggle('startPage','loginPage'); }
+function showRegister(){ toggle('startPage','registerPage'); }
+function backToStart(){ toggle('loginPage','startPage'); toggle('registerPage','startPage'); }
+function toggle(hide,show){ document.getElementById(hide).classList.add('hidden'); document.getElementById(show).classList.remove('hidden'); }
+
+// === LOGIN ===
+async function login(){
+  const data = {
+    action: "loginUser",
+    username: document.getElementById('loginUsername').value.trim(),
+    password: document.getElementById('loginPassword').value.trim()
+  };
+  const msg = document.getElementById('loginMsg');
+  msg.textContent = "Checking...";
+  const res = await fetch(WEB_APP_URL, {
+    method:"POST", body: JSON.stringify(data),
+    headers:{'Content-Type':'application/json'}
+  }).then(r=>r.json()).catch(()=>null);
+
+  if(!res){ msg.textContent="Network error."; msg.style.color="red"; return; }
+
+  if(res.status==="admin"){
+    msg.textContent="Welcome Admin!"; msg.style.color="green";
+    alert("Welcome Admin (next: Admin Dashboard)");
+  }else if(res.status==="user"){
+    msg.textContent="Welcome "+res.name; msg.style.color="green";
+    alert("Welcome "+res.name+"!");
+  }else{
+    msg.textContent=res.message; msg.style.color="red";
+  }
+}
+
+// === REGISTER ===
+async function register(){
+  const data = {
+    action:"registerUser",
+    firstName:document.getElementById('firstName').value.trim(),
+    lastName:document.getElementById('lastName').value.trim(),
+    department:document.getElementById('department').value.trim(),
+    contact:document.getElementById('contact').value.trim(),
+    email:document.getElementById('email').value.trim(),
+    username:document.getElementById('username').value.trim(),
+    password:document.getElementById('password').value.trim(),
+    refcode:document.getElementById('refcode').value.trim()
+  };
+  const msg = document.getElementById('registerMsg');
+  msg.textContent="Submitting...";
+  const res = await fetch(WEB_APP_URL, {
+    method:"POST", body: JSON.stringify(data),
+    headers:{'Content-Type':'application/json'}
+  }).then(r=>r.json()).catch(()=>null);
+
+  if(!res){ msg.textContent="Network error."; msg.style.color="red"; return; }
+  msg.textContent=res.message;
+  msg.style.color = res.status==="success"?"green":"red";
+  if(res.status==="success"){ setTimeout(()=>backToStart(),1500); }
+}
+</script>
+</head>
+<body>
+<div class="container">
+  <div id="startPage">
+    <h2>Do you have an account?</h2>
+    <button onclick="showLogin()">Yes, Login</button>
+    <button onclick="showRegister()">No, Register</button>
+  </div>
+
+  <div id="loginPage" class="hidden">
+    <h2>Login</h2>
+    <input type="text" id="loginUsername" placeholder="Username">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <span class="link" onclick="backToStart()">← Back</span>
+    <p class="message" id="loginMsg"></p>
+  </div>
+
+  <div id="registerPage" class="hidden">
+    <h2>Register</h2>
+    <input type="text" id="firstName" placeholder="First Name">
+    <input type="text" id="lastName" placeholder="Last Name">
+    <input type="text" id="department" placeholder="Department">
+    <input type="text" id="contact" placeholder="Contact Number">
+    <input type="email" id="email" placeholder="Google Email">
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <input type="text" id="refcode" placeholder="Reference Code">
+    <button onclick="register()">Register</button>
+    <span class="link" onclick="backToStart()">← Back</span>
+    <p class="message" id="registerMsg"></p>
+  </div>
+</div>
+</body>
+</html>
