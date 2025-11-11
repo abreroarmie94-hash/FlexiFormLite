@@ -298,9 +298,11 @@
             <p class="text-center" style="margin-bottom: 30px;">Do you have an account? Please log in.</p>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="loginEmail">Email (Username)</label>
-                    <input type="email" id="loginEmail" required>
-                </div>
+                    
+                    <label for="loginEmail">Email or Username</label>
+                    <input type="text" id="loginEmail" required>
+                    
+                    </div>
                 <div class="form-group">
                     <label for="loginPassword">Contact Number (Password)</label>
                     <input type="password" id="loginPassword" required>
@@ -438,7 +440,7 @@
         // == CONFIGURATION (PALITAN MO ITO!)
         // -----------------------------------------------------------------
         
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbww9DXdB8ylw57F0W_M58UlRGP2rCcVF53aCU9Mx1gd1m-LS9SHnyVenCLmr1-GseV0/exec';
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbycYNgtPHIQzNRQPcbSoBoI0O_JBiIyA4rJtQYoyyvkS_l-VZ4xHWr2wUalIpBE8O7z/exec';
 
         // -----------------------------------------------------------------
         // == GLOBAL STATE
@@ -578,7 +580,7 @@
 
                 if (res.status === 'success') {
                     currentUser = res.user; // Store user info
-                    currentUser.email = username; // Store email for later
+                    // currentUser.email = username; // Store email for later -- NOTE: currentUser.email is now set from the backend
                     if (res.role === 'admin') {
                         showPage('adminDashboardPage');
                         document.getElementById('adminWelcome').innerText = `Welcome, ${currentUser.firstname}!`;
@@ -968,7 +970,8 @@
             
             const data = {
                 projectName: projectName,
-                questions: finalQuestions
+                questions: finalQuestions,
+                creatorEmail: currentUser.email // Isasama na natin ang email ng admin
             };
             
             const res = await gasPost('createProject', data);
@@ -985,4 +988,3 @@
     </script>
 </body>
 </html>
-
