@@ -18,46 +18,49 @@
 </style>
 <script>
 // *********************** CONFIG ***********************
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzBZMg5iflDrIXyTg4tFz8xFsuzmX1y3GJ0ZjgoMUCZtrJMcmovlU_yj0_J_V9S1Y8M/exec";
+// Use a proxy to fix CORS errors from GitHub Pages
+const WEB_APP_URL = "https://corsproxy.io/?" + encodeURIComponent(
+  "https://script.google.com/macros/s/AKfycbwGGFc_Keeb6laQz78JIYP-EdJOQkXVmtj9tWV24znsHI6uX0fkcFQYH3Of-laGyd0b/exec"
+);
 
-// Register service worker (offline support)
+// Register service worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js')
     .then(()=>console.log('ServiceWorker registered'))
     .catch(err=>console.log('SW failed',err));
 }
 
-// ---------------- Helper to POST JSON safely ----------------
+// ---------------- Helper to POST JSON ----------------
 async function postJSON(payload) {
   try {
     const res = await fetch(WEB_APP_URL, {
       method: "POST",
-      mode: "cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
-    // Network-level failure (like 404 or CORS)
-    if (!res.ok) {
-      console.error("HTTP error:", res.status, res.statusText);
-      return { status:"error", message:"Network response not ok (" + res.status + ")" };
+    // If proxy or backend responds OK
+    if (!res.ok) throw new Error("HTTP status " + res.status);
+    const text = await res.text();
+
+    // Apps Script sometimes returns text/html, so parse safely
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.warn("Non-JSON response:", text);
+      return { status:"error", message:"Invalid response from server" };
     }
 
-    // Try parse JSON
-    const data = await res.json().catch(() => null);
-    if (!data) return { status:"error", message:"Invalid JSON response" };
-
-    console.log("Backend:", data);
-    return data;
-
   } catch (err) {
-    console.error("Fetch failed:", err);
+    console.error("Network error:", err);
     return { status:"error", message:"Network error: " + err.message };
   }
 }
 
-// ---------------- UI navigation helpers ----------------
-function show(id){ document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+function show(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
 function backToStart(){ show('startPage'); }
 
 // ---------------- LOGIN ----------------
@@ -65,24 +68,20 @@ async function login(){
   const u = document.getElementById('loginUsername').value.trim();
   const p = document.getElementById('loginPassword').value.trim();
   const msg = document.getElementById('loginMsg');
-  msg.style.color = "#555"; msg.textContent = "Checking...";
-
-  if(!u || !p){ msg.style.color="red"; msg.textContent="Enter username & password"; return; }
-
+  msg.style.color="#555"; msg.textContent="Checking...";
   const res = await postJSON({ action:"loginUser", username:u, password:p });
+  if (!res) { msg.style.color="red"; msg.textContent="Network error"; return; }
 
   if (res.status === "admin") {
-    msg.style.color="green"; msg.textContent = res.message;
-    show('adminDashboard');
-    loadProjects(true);
+    msg.style.color="green"; msg.textContent=res.message;
+    show('adminDashboard'); loadProjects(true);
   } else if (res.status === "user") {
-    msg.style.color="green"; msg.textContent = res.message;
-    sessionStorage.setItem('userName', res.name || u);
+    msg.style.color="green"; msg.textContent=res.message;
+    sessionStorage.setItem('userName', res.name||u);
     sessionStorage.setItem('userUsername', u);
-    show('userDashboard');
-    loadProjects(false);
+    show('userDashboard'); loadProjects(false);
   } else {
-    msg.style.color="red"; msg.textContent = res.message || "Network error";
+    msg.style.color="red"; msg.textContent=res.message;
   }
 }
 
@@ -90,107 +89,86 @@ async function login(){
 async function register(){
   const payload = {
     action:"registerUser",
-    firstName: document.getElementById('firstName').value.trim(),
-    lastName: document.getElementById('lastName').value.trim(),
-    department: document.getElementById('department').value.trim(),
-    contact: document.getElementById('contact').value.trim(),
-    email: document.getElementById('email').value.trim(),
-    username: document.getElementById('username').value.trim(),
-    password: document.getElementById('password').value.trim(),
-    refcode: document.getElementById('refcode').value.trim()
+    firstName:document.getElementById('firstName').value.trim(),
+    lastName:document.getElementById('lastName').value.trim(),
+    department:document.getElementById('department').value.trim(),
+    contact:document.getElementById('contact').value.trim(),
+    email:document.getElementById('email').value.trim(),
+    username:document.getElementById('username').value.trim(),
+    password:document.getElementById('password').value.trim(),
+    refcode:document.getElementById('refcode').value.trim()
   };
-  const msg = document.getElementById('registerMsg');
+  const msg=document.getElementById('registerMsg');
   msg.style.color="#555"; msg.textContent="Submitting...";
-
-  const res = await postJSON(payload);
-  msg.style.color = (res.status==="success") ? "green":"red";
-  msg.textContent = res.message || "Network error";
-
-  if (res.status === "success") {
-    setTimeout(()=>show('startPage'),1200);
-  }
+  const res=await postJSON(payload);
+  msg.style.color=(res.status==="success")?"green":"red";
+  msg.textContent=res.message||"Network error";
+  if(res.status==="success"){setTimeout(()=>show('startPage'),1200);}
 }
 
-// ---------------- Projects (admin create / list) ----------------
+// ---------------- Projects (Admin) ----------------
 async function createProjectUI(){
-  const name = document.getElementById('projName').value.trim();
-  const descr = document.getElementById('projDesc').value.trim();
-  if (!name) { alert("Project name required"); return; }
-
-  const res = await postJSON({ action:"createProject", adminKey:"ADMINBOYKA", projectName:name, description:descr, creator:"ADMIN" });
-  alert(res.message || "Network error");
-  if (res.status === "success") {
-    document.getElementById('projName').value = "";
-    document.getElementById('projDesc').value = "";
+  const name=document.getElementById('projName').value.trim();
+  const descr=document.getElementById('projDesc').value.trim();
+  if(!name){alert("Project name required");return;}
+  const res=await postJSON({action:"createProject",adminKey:"ADMINBOYKA",projectName:name,description:descr,creator:"ADMIN"});
+  alert(res.message||"Network error");
+  if(res.status==="success"){
+    document.getElementById('projName').value="";
+    document.getElementById('projDesc').value="";
     loadProjects(true);
   }
 }
 
 async function loadProjects(isAdmin){
-  const res = await postJSON({ action:"listProjects" });
-  const listEl = document.getElementById(isAdmin ? 'adminProjectsList' : 'userProjectsList');
-  if (!res || res.status!=="success") {
-    listEl.innerHTML = "<p>No projects found</p>";
-    return;
-  }
-  const projects = res.projects || [];
-  if (!projects.length) { listEl.innerHTML = "<p>No projects found</p>"; return; }
+  const res=await postJSON({action:"listProjects"});
+  const listEl=document.getElementById(isAdmin?'adminProjectsList':'userProjectsList');
+  if(!res||res.status!=="success"){listEl.innerHTML="<p>No projects found</p>";return;}
+  const projects=res.projects||[];
+  if(!projects.length){listEl.innerHTML="<p>No projects found</p>";return;}
 
-  listEl.innerHTML = "";
-  projects.forEach(p => {
-    const div = document.createElement('div');
-    div.style.border = "1px solid #eee"; div.style.padding = "10px"; div.style.marginBottom="8px"; div.style.borderRadius="8px";
-    const t = document.createElement('div'); t.textContent = p.projectName; t.style.fontWeight="600";
-    const d = document.createElement('div'); d.textContent = p.description || ""; d.style.fontSize="13px";
-    const btn = document.createElement('button'); btn.textContent = isAdmin ? "View / Edit" : "Open Survey";
-    btn.style.marginTop="8px";
-    btn.onclick = ()=> openProject(p, isAdmin);
-    div.appendChild(t); div.appendChild(d); div.appendChild(btn);
-    listEl.appendChild(div);
+  listEl.innerHTML="";
+  projects.forEach(p=>{
+    const div=document.createElement('div');
+    div.style.border="1px solid #eee";div.style.padding="10px";div.style.marginBottom="8px";div.style.borderRadius="8px";
+    const t=document.createElement('div');t.textContent=p.projectName;t.style.fontWeight="600";
+    const d=document.createElement('div');d.textContent=p.description||"";d.style.fontSize="13px";
+    const btn=document.createElement('button');btn.textContent=isAdmin?"View / Edit":"Open Survey";
+    btn.style.marginTop="8px";btn.onclick=()=>openProject(p,isAdmin);
+    div.append(t,d,btn);listEl.appendChild(div);
   });
 }
 
-function openProject(project, isAdmin){
-  if (isAdmin) {
-    const see = confirm("Do you want to see details? Press Cancel to edit.");
-    if (see) {
-      alert("Project: " + project.projectName + "\nCreated: " + new Date(project.dateCreated).toLocaleString());
-    } else {
-      document.getElementById('projName').value = project.projectName;
-      document.getElementById('projDesc').value = project.description;
+function openProject(project,isAdmin){
+  if(isAdmin){
+    const see=confirm("Do you want to see details? Press Cancel to edit.");
+    if(see){
+      alert("Project: "+project.projectName+"\nCreated: "+new Date(project.dateCreated).toLocaleString());
+    }else{
+      document.getElementById('projName').value=project.projectName;
+      document.getElementById('projDesc').value=project.description;
       show('adminCreateProject');
     }
-  } else {
-    document.getElementById('surveyProjectName').textContent = project.projectName;
-    document.getElementById('surveyProjectDesc').textContent = project.description;
+  }else{
+    document.getElementById('surveyProjectName').textContent=project.projectName;
+    document.getElementById('surveyProjectDesc').textContent=project.description;
+    document.getElementById('survey_projectName_input').value=project.projectName;
     show('userSurvey');
-    document.getElementById('survey_projectName_input').value = project.projectName;
   }
 }
 
-// ---------------- Submit survey (user) ----------------
+// ---------------- Submit survey (User) ----------------
 async function submitSurvey(){
-  const projectName = document.getElementById('survey_projectName_input').value;
-  const username = sessionStorage.getItem('userUsername');
-  const email = sessionStorage.getItem('userEmail') || "none";
-  const answer1 = document.getElementById('q1').value.trim();
-
-  const res = await postJSON({
-    action:"submitSurvey",
-    projectName,
-    username,
-    email,
-    answers: { q1: answer1 }
-  });
-
-  alert(res.message || "Network error");
-  if (res.status === "success") {
-    show('userDashboard');
-    loadProjects(false);
-  }
+  const projectName=document.getElementById('survey_projectName_input').value;
+  const username=sessionStorage.getItem('userUsername');
+  const email=sessionStorage.getItem('userEmail')||"none";
+  const answer1=document.getElementById('q1').value.trim();
+  const res=await postJSON({action:"submitSurvey",projectName,username,email,answers:{q1:answer1}});
+  alert(res.message||"Network error");
+  if(res.status==="success"){show('userDashboard');loadProjects(false);}
 }
 
-document.addEventListener('DOMContentLoaded', ()=> show('startPage'));
+document.addEventListener('DOMContentLoaded',()=>show('startPage'));
 </script>
 </head>
 <body>
@@ -231,29 +209,20 @@ document.addEventListener('DOMContentLoaded', ()=> show('startPage'));
 
     <!-- Admin Dashboard -->
     <div id="adminDashboard" class="page hidden">
-      <div class="topbar">
-        <div><strong>Admin Dashboard</strong></div>
-        <div class="status">Admin</div>
-      </div>
-
+      <div class="topbar"><div><strong>Admin Dashboard</strong></div><div class="status">Admin</div></div>
       <div id="adminCreateProject">
         <h2>Create Project</h2>
         <input id="projName" placeholder="Project name">
         <textarea id="projDesc" placeholder="Short description" rows="3"></textarea>
         <button onclick="createProjectUI()">Create Project</button>
       </div>
-
       <h2 style="margin-top:12px">Projects</h2>
       <div id="adminProjectsList" style="max-height:260px;overflow:auto"></div>
     </div>
 
     <!-- User Dashboard -->
     <div id="userDashboard" class="page hidden">
-      <div class="topbar">
-        <div><strong>User Dashboard</strong></div>
-        <div class="status" id="userStatus">User</div>
-      </div>
-
+      <div class="topbar"><div><strong>User Dashboard</strong></div><div class="status" id="userStatus">User</div></div>
       <h2>List of Projects</h2>
       <div id="userProjectsList" style="max-height:260px;overflow:auto"></div>
     </div>
@@ -272,4 +241,3 @@ document.addEventListener('DOMContentLoaded', ()=> show('startPage'));
   </div>
 </body>
 </html>
-
