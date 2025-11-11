@@ -1,134 +1,273 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>FlexiForm App</title>
 <link rel="manifest" href="manifest.json">
 <style>
-  body {
-    margin:0; font-family:'Poppins',sans-serif;
-    background:linear-gradient(135deg,#0066ff,#00ccff);
-    height:100vh; display:flex; justify-content:center; align-items:center;
-  }
-  .container {
-    background:#fff; padding:2rem; border-radius:20px;
-    box-shadow:0 8px 25px rgba(0,0,0,0.2);
-    width:90%; max-width:400px; transition:all .4s ease;
-  }
-  h2 { text-align:center; color:#0066ff; margin-bottom:1rem; }
-  input, button {
-    width:100%; padding:10px; margin:8px 0;
-    border-radius:8px; border:1px solid #ccc; font-size:14px;
-  }
-  button { background:#0066ff; color:#fff; border:none; cursor:pointer; }
-  button:hover { background:#0044cc; }
-  .hidden { display:none; }
-  .link { color:#0066ff; cursor:pointer; text-align:center; display:block; margin-top:10px; }
-  .message { text-align:center; font-size:13px; margin-top:5px; }
-  .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
-  .status { font-size:12px; }
+  body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(135deg,#0066ff,#00ccff);min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .container{width:95%;max-width:420px;background:#fff;border-radius:16px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+  h2{text-align:center;color:#0066ff;margin:8px 0}
+  input,select,button,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;margin:8px 0;box-sizing:border-box}
+  button{background:#0066ff;color:#fff;border:0;cursor:pointer}
+  .hidden{display:none}
+  .link{color:#0066ff;text-align:center;display:block;cursor:pointer;margin-top:8px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .status{font-size:13px}
 </style>
 <script>
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyDn3X97outoTMvTUi7v1Kx3f6T46Fw4R1QctB7adp8-uMsbIEqFH1FIwqLU9EpqOmY/exec";
+// *********************** CONFIG ***********************
+// Put the published Apps Script Web App URL here (doPost endpoint)
+const WEB_APP_URL = "YOUR_DEPLOYED_WEBAPP_URL_HERE"; // <- REPLACE
 
+// Service worker filename (must match file you upload to GH Pages)
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./serviceWorker.js')
-  .then(()=>console.log('Service Worker registered'))
-  .catch(err=>console.log('SW registration failed', err));
+  navigator.serviceWorker.register('./service-worker.js')
+    .then(()=>console.log('ServiceWorker registered'))
+    .catch(err=>console.log('SW failed',err));
 }
 
-// === UI Handlers ===
-function showLogin(){ toggle('startPage','loginPage'); }
-function showRegister(){ toggle('startPage','registerPage'); }
-function backToStart(){ toggle('loginPage','startPage'); toggle('registerPage','startPage'); }
-function toggle(hide,show){ document.getElementById(hide).classList.add('hidden'); document.getElementById(show).classList.remove('hidden'); }
-
-// === LOGIN ===
-async function login(){
-  const data = {
-    action: "loginUser",
-    username: document.getElementById('loginUsername').value.trim(),
-    password: document.getElementById('loginPassword').value.trim()
-  };
-  const msg = document.getElementById('loginMsg');
-  msg.textContent = "Checking...";
-  const res = await fetch(WEB_APP_URL, {
-    method:"POST", body: JSON.stringify(data),
-    headers:{'Content-Type':'application/json'}
-  }).then(r=>r.json()).catch(()=>null);
-
-  if(!res){ msg.textContent="Network error."; msg.style.color="red"; return; }
-
-  if(res.status==="admin"){
-    msg.textContent="Welcome Admin!"; msg.style.color="green";
-    alert("Welcome Admin (next: Admin Dashboard)");
-  }else if(res.status==="user"){
-    msg.textContent="Welcome "+res.name; msg.style.color="green";
-    alert("Welcome "+res.name+"!");
-  }else{
-    msg.textContent=res.message; msg.style.color="red";
+// Small util to POST JSON and return parsed JSON
+async function postJSON(payload) {
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: {'Content-Type':'application/json'}
+    });
+    return await res.json();
+  } catch (err) {
+    console.error(err);
+    return null;
   }
 }
 
-// === REGISTER ===
+// UI helpers
+function show(id){ document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+function backToStart(){ show('startPage'); }
+
+// ---------------- LOGIN ----------------
+async function login(){
+  const u = document.getElementById('loginUsername').value.trim();
+  const p = document.getElementById('loginPassword').value.trim();
+  const msg = document.getElementById('loginMsg');
+  msg.style.color = "#555"; msg.textContent = "Checking...";
+  const res = await postJSON({ action:"loginUser", username:u, password:p });
+  if (!res) { msg.style.color="red"; msg.textContent="Network error"; return; }
+
+  if (res.status === "admin") {
+    msg.style.color="green"; msg.textContent = res.message;
+    // go to admin dashboard
+    show('adminDashboard');
+    loadProjects(true);
+  } else if (res.status === "user") {
+    msg.style.color="green"; msg.textContent = res.message;
+    // go to user page
+    // store minimal context in sessionStorage
+    sessionStorage.setItem('userName', res.name || u);
+    sessionStorage.setItem('userUsername', u);
+    show('userDashboard');
+    loadProjects(false);
+  } else {
+    msg.style.color="red"; msg.textContent = res.message;
+  }
+}
+
+// ---------------- REGISTER ----------------
 async function register(){
-  const data = {
+  const payload = {
     action:"registerUser",
-    firstName:document.getElementById('firstName').value.trim(),
-    lastName:document.getElementById('lastName').value.trim(),
-    department:document.getElementById('department').value.trim(),
-    contact:document.getElementById('contact').value.trim(),
-    email:document.getElementById('email').value.trim(),
-    username:document.getElementById('username').value.trim(),
-    password:document.getElementById('password').value.trim(),
-    refcode:document.getElementById('refcode').value.trim()
+    firstName: document.getElementById('firstName').value.trim(),
+    lastName: document.getElementById('lastName').value.trim(),
+    department: document.getElementById('department').value.trim(),
+    contact: document.getElementById('contact').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    username: document.getElementById('username').value.trim(),
+    password: document.getElementById('password').value.trim(),
+    refcode: document.getElementById('refcode').value.trim()
   };
   const msg = document.getElementById('registerMsg');
-  msg.textContent="Submitting...";
-  const res = await fetch(WEB_APP_URL, {
-    method:"POST", body: JSON.stringify(data),
-    headers:{'Content-Type':'application/json'}
-  }).then(r=>r.json()).catch(()=>null);
-
-  if(!res){ msg.textContent="Network error."; msg.style.color="red"; return; }
-  msg.textContent=res.message;
-  msg.style.color = res.status==="success"?"green":"red";
-  if(res.status==="success"){ setTimeout(()=>backToStart(),1500); }
+  msg.style.color="#555"; msg.textContent="Submitting...";
+  const res = await postJSON(payload);
+  if (!res) { msg.style.color="red"; msg.textContent="Network error"; return; }
+  msg.style.color = (res.status==="success") ? "green":"red";
+  msg.textContent = res.message;
+  if (res.status === "success") {
+    setTimeout(()=>show('startPage'),1200);
+  }
 }
+
+// ---------------- Projects (admin create / list) ----------------
+async function createProjectUI(){
+  const name = document.getElementById('projName').value.trim();
+  const descr = document.getElementById('projDesc').value.trim();
+  if (!name) { alert("Project name required"); return; }
+  // NOTE: Using adminKey = ADMINBOYKA to authorize (server uses simple check)
+  const res = await postJSON({ action:"createProject", adminKey:"ADMINBOYKA", projectName:name, description:descr, creator:"ADMIN" });
+  if (!res) { alert("Network error"); return; }
+  alert(res.message);
+  if (res.status === "success") {
+    document.getElementById('projName').value = "";
+    document.getElementById('projDesc').value = "";
+    loadProjects(true);
+  }
+}
+
+async function loadProjects(isAdmin){
+  const res = await postJSON({ action:"listProjects" });
+  const listEl = document.getElementById(isAdmin ? 'adminProjectsList' : 'userProjectsList');
+  if (!res || res.status!=="success") {
+    listEl.innerHTML = "<p>No projects found</p>";
+    return;
+  }
+  const projects = res.projects || [];
+  if (!projects.length) { listEl.innerHTML = "<p>No projects found</p>"; return; }
+
+  // render as simple list
+  listEl.innerHTML = "";
+  projects.forEach(p => {
+    const div = document.createElement('div');
+    div.style.border = "1px solid #eee"; div.style.padding = "10px"; div.style.marginBottom="8px"; div.style.borderRadius="8px";
+    const t = document.createElement('div'); t.textContent = p.projectName; t.style.fontWeight="600";
+    const d = document.createElement('div'); d.textContent = p.description || ""; d.style.fontSize="13px";
+    const btn = document.createElement('button'); btn.textContent = isAdmin ? "View / Edit" : "Open Survey";
+    btn.style.marginTop="8px";
+    btn.onclick = ()=> openProject(p, isAdmin);
+    div.appendChild(t); div.appendChild(d); div.appendChild(btn);
+    listEl.appendChild(div);
+  });
+}
+
+function openProject(project, isAdmin){
+  // Show a modal-like simple detail / action flow
+  if (isAdmin) {
+    const see = confirm("Do you want to see details? Press Cancel to edit.");
+    if (see) {
+      alert("Project: " + project.projectName + "\nCreated: " + new Date(project.dateCreated).toLocaleString());
+    } else {
+      // For this prototype, editing is same as createProjectUI filled with values
+      document.getElementById('projName').value = project.projectName;
+      document.getElementById('projDesc').value = project.description;
+      show('adminCreateProject');
+    }
+  } else {
+    // open the survey for user to fill - for prototype we show simple form
+    document.getElementById('surveyProjectName').textContent = project.projectName;
+    document.getElementById('surveyProjectDesc').textContent = project.description;
+    show('userSurvey');
+    // attach current project name to hidden field
+    document.getElementById('survey_projectName_input').value = project.projectName;
+  }
+}
+
+// ---------------- Submit survey (user) ----------------
+async function submitSurvey(){
+  const projectName = document.getElementById('survey_projectName_input').value;
+  const username = sessionStorage.getItem('userUsername') || document.getElementById('surveyName').value.trim();
+  const email = sessionStorage.getItem('userEmail') || document.getElementById('surveyEmail').value.trim();
+  // For prototype, collect a sample answer field
+  const answer1 = document.getElementById('q1').value.trim();
+
+  const res = await postJSON({
+    action:"submitSurvey",
+    projectName,
+    username,
+    email,
+    answers: { q1: answer1 }
+  });
+
+  if (!res) { alert("Network error"); return; }
+  alert(res.message);
+  if (res.status === "success") {
+    // back to user projects list
+    show('userDashboard');
+    loadProjects(false);
+  }
+}
+
+// ---------------- UI initialization ----------------
+document.addEventListener('DOMContentLoaded', ()=> {
+  show('startPage');
+});
 </script>
 </head>
 <body>
-<div class="container">
-  <div id="startPage">
-    <h2>Do you have an account?</h2>
-    <button onclick="showLogin()">Yes, Login</button>
-    <button onclick="showRegister()">No, Register</button>
-  </div>
+  <div class="container">
 
-  <div id="loginPage" class="hidden">
-    <h2>Login</h2>
-    <input type="text" id="loginUsername" placeholder="Username">
-    <input type="password" id="loginPassword" placeholder="Password">
-    <button onclick="login()">Login</button>
-    <span class="link" onclick="backToStart()">← Back</span>
-    <p class="message" id="loginMsg"></p>
-  </div>
+    <!-- Start Page -->
+    <div id="startPage" class="page">
+      <h2>Do you have an account?</h2>
+      <button onclick="show('loginPage')">Yes, Login</button>
+      <button onclick="show('registerPage')">No, Register</button>
+    </div>
 
-  <div id="registerPage" class="hidden">
-    <h2>Register</h2>
-    <input type="text" id="firstName" placeholder="First Name">
-    <input type="text" id="lastName" placeholder="Last Name">
-    <input type="text" id="department" placeholder="Department">
-    <input type="text" id="contact" placeholder="Contact Number">
-    <input type="email" id="email" placeholder="Google Email">
-    <input type="text" id="username" placeholder="Username">
-    <input type="password" id="password" placeholder="Password">
-    <input type="text" id="refcode" placeholder="Reference Code">
-    <button onclick="register()">Register</button>
-    <span class="link" onclick="backToStart()">← Back</span>
-    <p class="message" id="registerMsg"></p>
+    <!-- Login -->
+    <div id="loginPage" class="page hidden">
+      <h2>Login</h2>
+      <input id="loginUsername" placeholder="Username">
+      <input id="loginPassword" placeholder="Password" type="password">
+      <button onclick="login()">Login</button>
+      <span class="link" onclick="backToStart()">← Back</span>
+      <p id="loginMsg"></p>
+    </div>
+
+    <!-- Register -->
+    <div id="registerPage" class="page hidden">
+      <h2>Register</h2>
+      <input id="firstName" placeholder="First Name">
+      <input id="lastName" placeholder="Last Name">
+      <input id="department" placeholder="Department">
+      <input id="contact" placeholder="Contact Number">
+      <input id="email" placeholder="Google Email">
+      <input id="username" placeholder="Username">
+      <input id="password" placeholder="Password" type="password">
+      <input id="refcode" placeholder="Reference Code (ask company)">
+      <button onclick="register()">Register</button>
+      <span class="link" onclick="backToStart()">← Back</span>
+      <p id="registerMsg"></p>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="page hidden">
+      <div class="topbar">
+        <div><strong>Admin Dashboard</strong></div>
+        <div class="status">Admin</div>
+      </div>
+
+      <div id="adminCreateProject">
+        <h2>Create Project</h2>
+        <input id="projName" placeholder="Project name">
+        <textarea id="projDesc" placeholder="Short description" rows="3"></textarea>
+        <button onclick="createProjectUI()">Create Project</button>
+      </div>
+
+      <h2 style="margin-top:12px">Projects</h2>
+      <div id="adminProjectsList" style="max-height:260px;overflow:auto"></div>
+    </div>
+
+    <!-- User Dashboard -->
+    <div id="userDashboard" class="page hidden">
+      <div class="topbar">
+        <div><strong>User Dashboard</strong></div>
+        <div class="status" id="userStatus">User</div>
+      </div>
+
+      <h2>List of Projects</h2>
+      <div id="userProjectsList" style="max-height:260px;overflow:auto"></div>
+    </div>
+
+    <!-- User Survey Page (simple prototype) -->
+    <div id="userSurvey" class="page hidden">
+      <h2 id="surveyProjectName"></h2>
+      <div id="surveyProjectDesc" style="font-size:13px;color:#666"></div>
+      <input id="survey_projectName_input" type="hidden">
+      <p style="margin-top:12px">1) Sample Question: How satisfied are you?</p>
+      <input id="q1" placeholder="Your answer (short)">
+      <button onclick="submitSurvey()">Submit Response</button>
+      <span class="link" onclick="show('userDashboard')">← Back</span>
+    </div>
+
   </div>
-</div>
 </body>
 </html>
