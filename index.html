@@ -20,28 +20,43 @@
 // *********************** CONFIG ***********************
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGGFc_Keeb6laQz78JIYP-EdJOQkXVmtj9tWV24znsHI6uX0fkcFQYH3Of-laGyd0b/exec";
 
-// Service worker registration
+// Register service worker (offline support)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js')
     .then(()=>console.log('ServiceWorker registered'))
     .catch(err=>console.log('SW failed',err));
 }
 
-// Helper to POST JSON
+// ---------------- Helper to POST JSON safely ----------------
 async function postJSON(payload) {
   try {
     const res = await fetch(WEB_APP_URL, {
       method: "POST",
-      body: JSON.stringify(payload),
-      headers: {'Content-Type':'application/json'}
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
-    return await res.json();
+
+    // Network-level failure (like 404 or CORS)
+    if (!res.ok) {
+      console.error("HTTP error:", res.status, res.statusText);
+      return { status:"error", message:"Network response not ok (" + res.status + ")" };
+    }
+
+    // Try parse JSON
+    const data = await res.json().catch(() => null);
+    if (!data) return { status:"error", message:"Invalid JSON response" };
+
+    console.log("Backend:", data);
+    return data;
+
   } catch (err) {
-    console.error(err);
-    return null;
+    console.error("Fetch failed:", err);
+    return { status:"error", message:"Network error: " + err.message };
   }
 }
 
+// ---------------- UI navigation helpers ----------------
 function show(id){ document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
 function backToStart(){ show('startPage'); }
 
@@ -51,8 +66,10 @@ async function login(){
   const p = document.getElementById('loginPassword').value.trim();
   const msg = document.getElementById('loginMsg');
   msg.style.color = "#555"; msg.textContent = "Checking...";
+
+  if(!u || !p){ msg.style.color="red"; msg.textContent="Enter username & password"; return; }
+
   const res = await postJSON({ action:"loginUser", username:u, password:p });
-  if (!res) { msg.style.color="red"; msg.textContent="Network error"; return; }
 
   if (res.status === "admin") {
     msg.style.color="green"; msg.textContent = res.message;
@@ -65,7 +82,7 @@ async function login(){
     show('userDashboard');
     loadProjects(false);
   } else {
-    msg.style.color="red"; msg.textContent = res.message;
+    msg.style.color="red"; msg.textContent = res.message || "Network error";
   }
 }
 
@@ -84,10 +101,11 @@ async function register(){
   };
   const msg = document.getElementById('registerMsg');
   msg.style.color="#555"; msg.textContent="Submitting...";
+
   const res = await postJSON(payload);
-  if (!res) { msg.style.color="red"; msg.textContent="Network error"; return; }
   msg.style.color = (res.status==="success") ? "green":"red";
-  msg.textContent = res.message;
+  msg.textContent = res.message || "Network error";
+
   if (res.status === "success") {
     setTimeout(()=>show('startPage'),1200);
   }
@@ -98,9 +116,9 @@ async function createProjectUI(){
   const name = document.getElementById('projName').value.trim();
   const descr = document.getElementById('projDesc').value.trim();
   if (!name) { alert("Project name required"); return; }
+
   const res = await postJSON({ action:"createProject", adminKey:"ADMINBOYKA", projectName:name, description:descr, creator:"ADMIN" });
-  if (!res) { alert("Network error"); return; }
-  alert(res.message);
+  alert(res.message || "Network error");
   if (res.status === "success") {
     document.getElementById('projName').value = "";
     document.getElementById('projDesc').value = "";
@@ -165,8 +183,7 @@ async function submitSurvey(){
     answers: { q1: answer1 }
   });
 
-  if (!res) { alert("Network error"); return; }
-  alert(res.message);
+  alert(res.message || "Network error");
   if (res.status === "success") {
     show('userDashboard');
     loadProjects(false);
@@ -255,5 +272,3 @@ document.addEventListener('DOMContentLoaded', ()=> show('startPage'));
   </div>
 </body>
 </html>
-
-
