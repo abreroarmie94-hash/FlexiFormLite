@@ -1,19 +1,19 @@
 {
-  "name": "FlexiForm App",
-  "short_name": "FlexiForm",
-  "start_url": "./index.html",
+  "name": "AMI Project App",
+  "short_name": "AMI App",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#0066ff",
-  "orientation": "portrait",
+  "theme_color": "#1a237e",
+  "description": "Internal survey and project tool for AMI.",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "https://www.google.com/images/icons/product/apps-script-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "https://www.google.com/images/icons/product/apps-script-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
